@@ -15,6 +15,7 @@ config.log
 config.status
 faf-chroot-helper
 faf-dwarf-files
+faf.conf
 faf.html
 faf.info
 faf.spec
@@ -26,3 +27,7 @@ pyfaf/config.py
 stamp-vti
 texinfo.tex
 version.texi
+kobo/hub/faf-hub.conf
+llvm/.libs
+llvm/*.la
+llvm/*.lo
