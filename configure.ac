@@ -1,3 +1,5 @@
+AC_PREREQ([2.60])
+
 AC_INIT([faf], [0.3])
 
 AM_INIT_AUTOMAKE([-Wall])
@@ -7,6 +9,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AC_DISABLE_STATIC
 AC_PROG_CC
+AC_PROG_CXX
 AC_GNU_SOURCE
 AC_PROG_LIBTOOL
 
@@ -18,8 +21,7 @@ AC_PATH_PROGS(BASH, sh bash)
 
 # Manual pages.
 AC_PATH_PROG([ASCIIDOC], [asciidoc], [no])
-[if test "$ASCIIDOC" = "no"]
-[then]
+[if test "$ASCIIDOC" = "no"; then]
     [echo "The asciidoc program was not found in the search path. Please ensure"]
     [echo "that it is installed and its directory is included in the search path."]
     [echo "Then run configure again before attempting to build faf."]
@@ -28,8 +30,7 @@ AC_PATH_PROG([ASCIIDOC], [asciidoc], [no])
 
 # Manual pages.
 AC_PATH_PROG([XMLTO], [xmlto], [no])
-[if test "$XMLTO" = "no"]
-[then]
+[if test "$XMLTO" = "no"; then]
     [echo "The xmlto program was not found in the search path. Please ensure"]
     [echo "that it is installed and its directory is included in the search path."]
     [echo "Then run configure again before attempting to build faf."]
@@ -38,8 +39,7 @@ AC_PATH_PROG([XMLTO], [xmlto], [no])
 
 # make check
 AC_PATH_PROG([PYLINT], [pylint], [no])
-[if test "$PYLINT" = "no"]
-[then]
+[if test "$PYLINT" = "no"; then]
     [echo "The pylint program was not found in the search path. Please ensure"]
     [echo "that it is installed and its directory is included in the search path."]
     [echo "Then run configure again before attempting to build faf."]
@@ -48,6 +48,24 @@ AC_PATH_PROG([PYLINT], [pylint], [no])
 
 # faf-dwarf-files.c
 AC_CHECK_HEADERS([dwarf.h],,AC_MSG_ERROR([Required header file dwarf.h was not found. Please ensure that the development headers for elfutils are installed. Then run configure again before attempting to build faf.]))
+
+# LLVM
+AC_PATH_PROG([LLVM_CONFIG], [llvm-config], [no])
+[if test "$LLVM_CONFIG" = "no"; then]
+    [echo "The llvm-config program was not found in the search path. Please ensure"]
+    [echo "that it is installed and its directory is included in the search path."]
+    [echo "Then run configure again before attempting to build faf."]
+    [exit 1]
+[fi]
+
+LLVM_VERSION=`$LLVM_CONFIG --version | sed 's/svn.*//g'`
+LLVM_CFLAGS=`$LLVM_CONFIG --cppflags | sed -e 's/-DNDEBUG\>//g' -e 's/-pedantic//g'`
+LLVM_LIBS="`$LLVM_CONFIG --libs`"
+LLVM_LDFLAGS=`$LLVM_CONFIG --ldflags`
+AC_SUBST([LLVM_CFLAGS])
+AC_SUBST([LLVM_LIBS])
+AC_SUBST([LLVM_LDFLAGS])
+AC_SUBST([LLVM_VERSION])
 
 AC_CONFIG_FILES([
     faf.spec
@@ -62,6 +80,7 @@ AC_CONFIG_FILES([
     kobo/hub/xmlrpc/Makefile
     kobo/worker/Makefile
     kobo/worker/tasks/Makefile
+    llvm/Makefile
 ])
 
 AC_OUTPUT
