@@ -46,9 +46,6 @@ AC_PATH_PROG([PYLINT], [pylint], [no])
     [exit 1]
 [fi]
 
-# faf-dwarf-files.c
-AC_CHECK_HEADERS([dwarf.h],,AC_MSG_ERROR([Required header file dwarf.h was not found. Please ensure that the development headers for elfutils are installed. Then run configure again before attempting to build faf.]))
-
 # LLVM
 AC_PATH_PROG([LLVM_CONFIG], [llvm-config], [no])
 [if test "$LLVM_CONFIG" = "no"; then]
@@ -68,19 +65,9 @@ AC_SUBST([LLVM_LDFLAGS])
 AC_SUBST([LLVM_VERSION])
 
 AC_CONFIG_FILES([
-    faf.spec
+    canal.spec
     Makefile
-    pyfaf/Makefile
     tests/Makefile
-    kobo/Makefile
-    kobo/client/Makefile
-    kobo/client/commands/Makefile
-    kobo/hub/Makefile
-    kobo/hub/templates/Makefile
-    kobo/hub/xmlrpc/Makefile
-    kobo/worker/Makefile
-    kobo/worker/tasks/Makefile
-    llvm/Makefile
 ])
 
 AC_OUTPUT
