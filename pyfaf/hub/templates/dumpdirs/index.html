@@ -3,8 +3,12 @@
 {% block title %}Dump dirs list{% endblock %}
 
 {% block content %}
+    <input id="download" type="submit" value="download" onClick="dumpdiraction('')"/>
+    <input id="delete" type="submit" value="delete" onClick="dumpdiraction('delete')"/>
+
     <table class="table table-bordered">
         <tr>
+            <th><input type="checkbox" onClick="toggleChecked('input.slave', this.checked)"/></th>
             <th>Time</th>
             <th>Dump dir</th>
             <th>Size</th>
@@ -12,6 +16,7 @@
         </tr>
     {% for ctime, name, size in dumpdirs %}
         <tr>
+            <td><input class="slave" type="checkbox" value="{{name}}"/></td>
             <td>{{ctime|date:"Y-m-d H:i"}}</td>
             <td>
               <a href={% url pyfaf.hub.dumpdirs.views.item name %}>{{name}}</a>
