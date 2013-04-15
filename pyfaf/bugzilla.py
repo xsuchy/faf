@@ -1003,8 +1003,11 @@ def query_no_ticket(db, opsys_name, opsys_version=None,
         .join(Report)
         .join(ReportOpSysRelease)
         .filter(Report.count >= minimal_reports_threshold)
-        .filter(~Report.id.in_(
-            db.session.query(ReportRhbz.report_id).subquery()
+        .filter(~Problem.id.in_(
+            db.session.query(Problem.id)
+            .join(Report)
+            .join(ReportRhbz)
+            .subquery()
         ))
         .filter(ReportOpSysRelease.opsysrelease_id.in_(opsysrelease_ids))
         .distinct(Problem.id)).all()
