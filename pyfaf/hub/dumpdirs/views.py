@@ -148,7 +148,7 @@ def new(request, **kwargs):
         #       caching? atomicity? -> a new database table
         logger = logging.getLogger('pyfaf.hub.dumpdirs')
         ddlocation = pyfaf.config.get('DumpDir.CacheDirectory')
-        if os.path.exists(ddlocation):
+        if not os.path.exists(ddlocation):
             logging.error("Missing dump location '{0}'".format(ddlocation))
             return HttpResponse('Thats embarrasing! We have some troubles'
                                 ' with deployment. Please, try to upload'
