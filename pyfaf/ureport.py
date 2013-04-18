@@ -384,7 +384,7 @@ def find_ureport_kb_solution(ureport, db, opsys_id=None):
     btpath_parsers = get_kb_btpath_parsers(db, opsys_id=opsys_id)
     for parser in btpath_parsers:
         for frame in ureport["core_backtrace"]:
-            if parser.match(frame["path"]):
+            if "path" in frame and parser.match(frame["path"]):
                 return btpath_parsers[parser]
 
     pkg = ureport["installed_package"]
