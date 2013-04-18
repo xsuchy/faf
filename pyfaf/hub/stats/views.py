@@ -99,7 +99,7 @@ def by_date(request, year, month=None, day=None,
         since = since.replace(month=month)
         add = 30
 
-    if day and day in range(1, 31):
+    if day and day in range(1, 32):
         try:
             since = since.replace(day=day)
             add = 1
