@@ -46,7 +46,7 @@ class OpSys(GenericTable):
     __table_args__ = ( UniqueConstraint('name'), )
 
     id = Column(Integer, primary_key=True)
-    name = Column(String(32), nullable=False)
+    name = Column(String(64), nullable=False)
 
     def __str__(self):
         return self.name
@@ -65,7 +65,7 @@ class OpSysRelease(GenericTable):
 
     id = Column(Integer, primary_key=True)
     opsys_id = Column(Integer, ForeignKey("{0}.id".format(OpSys.__tablename__)), nullable=False, index=True)
-    version = Column(String(32), nullable=False)
+    version = Column(String(64), nullable=False)
     releasedate = Column(DateTime, nullable=True)
     status = Column(OpSysReleaseStatus, nullable=False)
     opsys = relationship(OpSys, backref="releases")
