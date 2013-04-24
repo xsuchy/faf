@@ -727,6 +727,18 @@ class Bugzilla(object):
 
         return self.bz.createbug(**data)
 
+    def backtrace_reportable(self, backtrace):
+        '''
+        Returns `True` if backtrace is reportable (has minimal number of frames
+        and frames with no or small number of missing data).
+        '''
+
+        min_frames = pyfaf.config.get("bugzilla.ReportMinimumFrames")
+        max_missing_data = pyfaf.config.get("bugzilla.ReportMaximumMissing")
+
+        return (-backtrace.quality <= max_missing_data and
+                len(backtrace.frames) >= min_frames)
+
     def create_bugs(self, problem_list,
                     summary_template="bugzilla_new_summary",
                     description_template="bugzilla_new_body",
@@ -766,6 +778,11 @@ class Bugzilla(object):
                 logging.warning("Refusing to process report with no backtrace.")
                 continue
 
+            backtrace = report.backtraces[0]
+            if not self.backtrace_reportable(backtrace):
+                logging.warning("Backtrace not reportable, skipping.")
+                continue
+
             if pyfaf.kb.report_in_kb(self.db, report):
                 logging.info("Report matches knowledge base entry, skipping.")
                 continue
@@ -782,8 +799,8 @@ class Bugzilla(object):
             if report.executables:
                 data["executable"] = report.executables[0].path
 
-            data["duphash"] = report.backtraces[0].hash
-            data["faf_hash"] = report.backtraces[0].hash
+            data["duphash"] = backtrace.hash
+            data["faf_hash"] = backtrace.hash
 
             highest_version = -1
             highest_release = None
@@ -816,7 +833,7 @@ class Bugzilla(object):
 
             backtrace_header = backtrace_headers[report.type]
 
-            frames = report.backtraces[0].as_named_tuples()
+            frames = backtrace.as_named_tuples()
             our_frames = []
             for position, frame in enumerate(frames):
                 more = ""

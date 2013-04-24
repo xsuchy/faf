@@ -13,6 +13,7 @@ import pyfaf
 from utils import faftests, mockzilla
 
 from pyfaf.storage.opsys import (OpSysRelease, OpSysComponent)
+from pyfaf.storage.report import ReportBacktrace
 from pyfaf.storage.problem import Problem
 
 
@@ -28,6 +29,10 @@ class BugzillaTestCase(faftests.RealworldCase):
         self.bz = pyfaf.bugzilla.Bugzilla(self.db, bz_url=None)
         self.mz = mockzilla.Mockzilla()
         self.bz.bz = self.mz
+
+        # disable quality limits
+        pyfaf.config.CONFIG['bugzilla.reportminimumframes'] = 0
+        pyfaf.config.CONFIG['bugzilla.reportmaximummissing'] = 100
 
     def create_dummy_bug(self):
         '''
@@ -436,6 +441,31 @@ class BugzillaTestCase(faftests.RealworldCase):
         newer_whiteboard = bug['status_whiteboard']
         self.assertNotEqual(new_whiteboard, newer_whiteboard)
 
+    def test_backtrace_reportable_minimum_frames(self):
+        '''
+        Make sure backrace_reportable respects
+        `bugzilla.ReportMinimumFrames` option.
+        '''
+
+        self.save_report('f17_will_abort')
+        bt = self.db.session.query(ReportBacktrace).one()
+        pyfaf.config.CONFIG['bugzilla.reportminimumframes'] = 3
+        self.assertTrue(self.bz.backtrace_reportable(bt))
+        pyfaf.config.CONFIG['bugzilla.reportminimumframes'] = 4
+        self.assertFalse(self.bz.backtrace_reportable(bt))
+
+    def test_backtrace_reportable_maximum_missing(self):
+        '''
+        Make sure backrace_reportable respects
+        `bugzilla.ReportMaximumMissing` option.
+        '''
+        self.save_report('f17_will_abort')
+        bt = self.db.session.query(ReportBacktrace).one()
+
+        pyfaf.config.CONFIG['bugzilla.reportmaximummissing'] = 6
+        self.assertTrue(self.bz.backtrace_reportable(bt))
+        pyfaf.config.CONFIG['bugzilla.reportmaximummissing'] = 0
+        self.assertFalse(self.bz.backtrace_reportable(bt))
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
