@@ -1,6 +1,6 @@
 {% autoescape off %}
-Description of problem: 
-Faf server recevied number of crash reports for this package.
+Description of problem:
+The Faf server has received a number of crash reports for this package.
 
 Problem URL:
 {{ server_url }}{% url pyfaf.hub.problems.views.bthash_forward faf_hash %}
@@ -9,7 +9,7 @@ Version-Release number of selected component:
 {{ package.nvra }}
 
 Additional info:
-first occurence: {{ first_occurence|date:"Y-m-d H:i" }} UTC
+first occurrence: {{ first_occurence|date:"Y-m-d H:i" }} UTC
 reports count: {{ reports_count }}
 {% if executable %}executable: {{ executable }}{% endif %}
 
