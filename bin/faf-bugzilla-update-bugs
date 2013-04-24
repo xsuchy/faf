@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add_argument('--opsys', help='OpSys name', default='Fedora')
     parser.add_argument('--version', help='OpSys version')
     parser.add_argument('--count', metavar='N', help='Minimal number of'
-                        ' reports required', default=50)
+                        ' reports required', default=200)
     parser.add_argument('--dry-run', action='store_true',
                         help='Do not perform any actions')
 

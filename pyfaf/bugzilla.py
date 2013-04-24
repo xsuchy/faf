@@ -979,7 +979,7 @@ class Bugzilla(object):
 
 
 def query_no_ticket(db, opsys_name, opsys_version=None,
-                    minimal_reports_threshold=10):
+                    minimal_reports_threshold=100):
     """
     Return list of problems without bugzilla tickets with
     report count over `minimal_reports_threshold`.
@@ -1016,7 +1016,7 @@ def query_no_ticket(db, opsys_name, opsys_version=None,
 
 
 def query_update_candidates(db, opsys_name, opsys_version=None,
-                            minimal_reports_threshold=50):
+                            minimal_reports_threshold=200):
     """
     Return list of problems with bugzilla tickets
     which are not CLOSED and have more reports
