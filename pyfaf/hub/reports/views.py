@@ -288,6 +288,9 @@ def new(request):
                         response['message'] += ("\n\nYou can get more information at {0}"
                                                 .format(solution.url))
 
+                    response['solutions'] = [{'cause': solution.cause,
+                                              'note':  solution.note_text,
+                                              'url':   solution.url}]
                     response['result'] = True
 
                 try:
