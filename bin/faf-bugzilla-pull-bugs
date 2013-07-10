@@ -5,6 +5,11 @@ import datetime
 
 import pyfaf
 
+from pyfaf.storage.rhbz import RhbzBug
+from pyfaf.storage.report import Report, ReportRhbz
+
+from sqlalchemy.sql.expression import desc
+
 parser = pyfaf.argparse.ArgumentParser(description="Bugzilla scraper",
                                        default_log_level=1)
 parser.add_argument("--create_components", help="Create missing components",
@@ -28,6 +33,9 @@ parser.add_argument("--update", help="Only update already downloaded bugs",
 
 parser.add_argument("--product", help="Download bugs for this product",
                     default="Fedora")
+
+parser.add_argument("--top", help="Update top N reports",
+                    metavar="N", type=int)
 
 args = parser.parse_args()
 arg_dict = vars(args)
@@ -72,5 +80,28 @@ if __name__ == "__main__":
         bugzilla.update_downloaded_bugs()
     elif args.all:
         map(process, bugzilla.all_bugs(**kwargs))
+    elif args.top:
+        logging.info("Updating top {0} reports".format(args.top))
+        candidates = (db.session.query(Report)
+                        .join(ReportRhbz)
+                        .join(RhbzBug)
+                        .filter(RhbzBug.status != "CLOSED")
+                        .order_by(desc(Report.count))
+                        .limit(args.top)
+                        .all())
+
+        update_ids = set()
+        for report in candidates:
+            update_ids.update(map(lambda bug: bug.id,
+                                  filter(lambda bug: bug.status != "CLOSED",
+                                         report.bugs)))
+
+        total = len(update_ids)
+        logging.info("Bugs to update: {0}".format(total))
+
+        for num, bug_id in enumerate(update_ids):
+            logging.info("Updating {0} ({1}/{2})".format(bug_id, num + 1, total))
+            bugzilla.save_bug(bugzilla.download_bug(bug_id))
+
     else:
         map(process, bugzilla.all_abrt_bugs(args.product, **kwargs))
