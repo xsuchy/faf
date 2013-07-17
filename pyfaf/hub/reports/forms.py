@@ -58,7 +58,7 @@ class NewReportForm(forms.Form):
 
         converted = ureport.convert_to_str(data)
         try:
-            ureport.validate(converted)
+            converted = ureport.validate(converted)
         except Exception as exp:
             reporter = None
             if ("reporter" in converted and
