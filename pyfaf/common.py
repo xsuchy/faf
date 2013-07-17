@@ -86,14 +86,17 @@ def format_reason(rtype, reason, function_name):
         return 'Crash in {0}'.format(function_name)
 
     if rtype == 'PYTHON':
-        spl = reason.split(':')
-        if spl >= 4:
-            file, line, loc, exception = spl[:4]
-            if loc == '<module>':
-                loc = '{0}:{1}'.format(file, line)
-            return '{0} in {1}'.format(exception, loc)
+        try:
+            spl = reason.split(':')
+            if spl >= 4:
+                file, line, loc, exception = spl[:4]
+                if loc == '<module>':
+                    loc = '{0}:{1}'.format(file, line)
+                return '{0} in {1}'.format(exception, loc)
 
-        return 'Exception'
+            return 'Exception'
+        except:
+            return reason
 
     if rtype == 'KERNELOOPS':
         return 'Kerneloops'
