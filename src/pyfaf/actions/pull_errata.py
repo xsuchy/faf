@@ -24,7 +24,7 @@ import json
 from pyfaf.storage.errata import Erratum, ErratumBug
 from pyfaf.utils.parse import str2bool
 from pyfaf.utils.kerberos import kinit
-from pyfaf.queries import get_erratum_bugs_for_erratum
+from pyfaf.queries import get_erratum_bugs_for_erratum, get_bugs_for_erratum
 
 
 class PullErrata(Action):
@@ -73,7 +73,10 @@ class PullErrata(Action):
                                             verify=self.verify_ssl)
 
                 data_bug = json.loads(response_bug.content)
-                erratum_bug_ids = set([err.bug_id for err in db_erratum.bugs])
+                erratum_bug_ids = set(bug_id for (bug_id, ) in
+                                      get_bugs_for_erratum(db, db_erratum.id)
+                                      .values('bug_id'))
+
                 for bug in data_bug:
                     # TODO: only add [abrt] bugs?
                     bug_id = int(bug[u"id"])
