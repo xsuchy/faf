@@ -86,7 +86,7 @@ __all__ = ["get_arch_by_name", "get_archs", "get_associate_by_name",
            "get_symbol_by_name_path", "get_symbolsource",
            "get_taint_flag_by_ureport_name", "get_unknown_opsys",
            "get_unknown_package", "update_frame_ssource",
-           "get_bz_external_bug", "get_bz_extra_external_bugs"]
+           "get_bz_bug_external_bugs", "get_bz_external_bugs"]
 
 
 def get_arch_by_name(db, arch_name):
@@ -934,22 +934,19 @@ def get_bz_attachment(db, attachment_id):
             .first())
 
 
-def get_bz_external_bug(db, external_bug_id):
+def get_bz_bug_external_bugs(db, bug_id):
     """
-    Return BzExternalBug instance if there is an external bug in the database
-    with `external_bug_id` id.
-    """
-
-    return (db.session.query(BzExternalBug)
-            .filter(BzExternalBug.id == external_bug_id)
-            .first())
-
-
-def get_bz_extra_external_bugs(db, bug_id, external_bug_ids):
-    """
-    Return BzExternalBugs for `bug_id` whose id is not in `external_bug_ids`.
+    Return BzExternalBugs with bug_iq equal to `bug_id`.
     """
 
     return (db.session.query(BzExternalBug)
-              .filter(BzExternalBug.bug_id == bug_id)
-              .filter(~BzExternalBug.id.in_(external_bug_ids)))
+            .filter(BzExternalBug.bug_id == bug_id))
+
+
+def get_bz_external_bugs(db, external_bug_ids):
+    """
+    Return BzExternalBugs whose id is in `external_bug_ids`.
+    """
+
+    return (db.session.query(BzExternalBug)
+                      .filter(BzExternalBug.id.in_(external_bug_ids)))

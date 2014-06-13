@@ -593,30 +593,36 @@ class Bugzilla(BugTracker):
         """
 
         total = len(external_bugs)
-        ids = set()
+        external_bug_ids = set(ebid for (ebid, ) in
+                               queries.get_bz_bug_external_bugs(db, new_bug_id)
+                               .values('id'))
         for num, external_bug in enumerate(external_bugs):
             self.log_debug("Processing external bug {0}/{1}".format(num + 1,
                            total))
 
-            if queries.get_bz_external_bug(db, external_bug["id"]):
+            ext_bug_id = int(external_bug["id"])
+            if ext_bug_id in external_bug_ids:
                 self.log_debug("Skipping existing external bug #{0}".format(
-                    external_bug["id"]))
+                    ext_bug_id))
+                external_bug_ids.remove(ext_bug_id)
                 continue
 
             new = BzExternalBug()
-            new.id = external_bug["id"]
+            new.id = ext_bug_id
             new.bug_id = new_bug_id
             new.ext_status = external_bug["ext_status"]
             new.type_id = external_bug["type"]["id"]
             new.type_description = external_bug["type"]["description"]
             new.ext_bug_id = external_bug["ext_bz_bug_id"]
 
-            db.session.merge(new)
-            ids.add(new.id)
+            new = db.session.merge(new)
 
         # Delete external bugs that are in FAF db, but not in BZ
-        (queries.get_bz_extra_external_bugs(db, new_bug_id, ids)
-            .delete(synchronize_session='fetch'))
+        if len(external_bug_ids) > 0:
+            self.log_info("Deleting {0} extra external bugs for bug #{1}"
+                          .format(len(external_bug_ids), new_bug_id))
+            (queries.get_bz_external_bugs(db, external_bug_ids)
+                    .delete(synchronize_session='fetch'))
 
         db.session.flush()
 
@@ -708,6 +714,7 @@ class Bugzilla(BugTracker):
             'cf_environment': origbug.cf_environment,
             'groups': origbug.groups
         }
+        # TODO: somehow add external bugs
 
         for key in data:
             if data[key] is None:
