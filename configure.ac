@@ -41,6 +41,7 @@ AC_CONFIG_FILES([
     src/pyfaf/opsys/Makefile
     src/pyfaf/problemtypes/Makefile
     src/pyfaf/repos/Makefile
+    src/pyfaf/solutionfinders/Makefile
     src/pyfaf/storage/Makefile
     src/pyfaf/storage/fixtures/Makefile
     src/pyfaf/storage/fixtures/sql/Makefile

@@ -11,9 +11,9 @@ from pyfaf.actions.init import Init
 from pyfaf.actions.archadd import ArchAdd
 from pyfaf.actions.releaseadd import ReleaseAdd
 from pyfaf.actions.releasemod import ReleaseModify
-from pyfaf.actions.kbsoladd import KbSolAdd
-from pyfaf.actions.kbpatadd import KbPatAdd
-from pyfaf.kb import find_solution
+from pyfaf.actions.sf_prefilter_soladd import SfPrefilterSolAdd
+from pyfaf.actions.sf_prefilter_patadd import SfPrefilterPatAdd
+from pyfaf.solutionfinders import find_solution
 from pyfaf.queries import get_opsys_by_name, get_arch_by_name
 from pyfaf.opsys import systems
 
@@ -140,7 +140,7 @@ class ActionsTestCase(faftests.DatabaseCase):
         }), self.db), None)
 
     def test_kb(self):
-        kb_sol_add = KbSolAdd()
+        kb_sol_add = SfPrefilterSolAdd()
         kb_sol_add.run(CmdLine({
             "cause": "VLC Media Player",
             "note": "VLC unsupported.",
@@ -161,7 +161,7 @@ class ActionsTestCase(faftests.DatabaseCase):
             "url": "http://www.fedoraproject.org",
         }), self.db)
 
-        kb_pat_add = KbPatAdd()
+        kb_pat_add = SfPrefilterPatAdd()
         self.assertEqual(kb_pat_add.run(CmdLine({
             "solution": "FooSolution",
             "btpath": "^.*/systemd-logind$",

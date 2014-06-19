@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import desc, literal
 
 from pyfaf import ureport
 from pyfaf.config import config
-from pyfaf.kb import find_solution
+from pyfaf.solutionfinders import find_solution
 from pyfaf.local import var
 from pyfaf.problemtypes import problemtypes
 from pyfaf.storage.opsys import (OpSys,

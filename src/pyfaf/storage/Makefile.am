@@ -7,12 +7,12 @@ storage_PYTHON = \
     common.py \
     debug.py \
     externalfaf.py \
-    kb.py \
     llvm.py \
     opsys.py \
     problem.py \
     project.py \
     report.py \
+    sf_prefilter.py \
     symbol.py
 
 storagedir = $(pythondir)/pyfaf/storage
