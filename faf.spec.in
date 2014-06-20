@@ -289,7 +289,8 @@ A plugin for %{name} implementing archadd action
 Summary: %{name}'s action-sf-prefilter plugin
 Requires: %{name} = %{faf_version}
 Requires: %{name}-solutionfinder-prefilter
-Obsoletes: %{name}-action-kb
+Obsoletes: %{name}-action-kb < 1.0
+Provides: %{name}-action-kb = 1.0
 
 %description action-sf-prefilter
 A plugin for %{name} implementing Solution finder Prefilter actions
@@ -842,6 +843,7 @@ exit 0
 
 %files solutionfinder-prefilter
 %{python_sitelib}/pyfaf/solutionfinders/prefilter_solution_finder.py*
+%config(noreplace) %{_sysconfdir}/faf/plugins/sf-prefilter.conf
 
 %changelog
 * Mon Apr 15 2013 Michal Toman <mtoman@redhat.com> 0.9-1

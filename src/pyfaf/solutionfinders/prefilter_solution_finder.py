@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
-from pyfaf.solutionfinders import SolutionFinder
 import re
+from pyfaf.solutionfinders import SolutionFinder
 from pyfaf.common import log
 from pyfaf.opsys import systems
 from pyfaf.problemtypes import problemtypes
@@ -27,10 +27,8 @@ from pyfaf.ureport_compat import ureport1to2
 
 
 class PrefilterSolutionFinder(SolutionFinder):
-    name = "prefilter"
+    name = "sf-prefilter"
     nice_name = "Prefilter Solution"
-    # Lower is higher priority
-    solution_priority = 1
 
     def _get_btpath_parsers(self, db, db_opsys=None):
         """

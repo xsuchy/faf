@@ -24,8 +24,7 @@ solution_finders = {}
 
 
 class SolutionFinder(Plugin):
-    # Lower is higher priority
-    solution_priority = 100
+    name = "abstract_solution_finder"
 
     def __init__(self, *args, **kwargs):
         """
@@ -37,9 +36,13 @@ class SolutionFinder(Plugin):
 
         if self.__class__.__name__ == "SolutionFinder":
             raise FafError("You need to subclass the SolutionFinder class "
-                           "in order to implement a problem type plugin.")
+                           "in order to implement a solution finder plugin.")
 
         super(SolutionFinder, self).__init__()
+
+        # Lower number means higher priority
+        self.load_config_to_self("solution_priority", "{0}.solution_priority"
+                                 .format(self.name), 100, callback=int)
 
     def find_solution_ureport(self, db, ureport):
         return None
@@ -51,7 +54,7 @@ import_dir(__name__, os.path.dirname(__file__))
 load_plugins(SolutionFinder, solution_finders)
 
 
-def find_solution(report, db=None):
+def find_solution(report, db=None, finders=None):
     """
     Check whether a Solution exists for a report (pyfaf.storage.Report or
     uReport dict). Return pyfaf.storage.SfPrefilterSolution object for the
@@ -61,16 +64,21 @@ def find_solution(report, db=None):
     if db is None:
         db = getDatabase()
 
+    if finders is None:
+        finders = solution_finders.keys()
+
     solutions = []
 
     if isinstance(report, Report):
-        for solution_finder in solution_finders.values():
+        for finder_name in finders:
+            solution_finder = solution_finders[finder_name]
             solution = solution_finder.find_solution_db_report(db, report)
             if solution is not None:
                 solutions.append((solution_finder.solution_priority, solution))
 
     elif isinstance(report, dict):
-        for solution_finder in solution_finders.values():
+        for finder_name in finders:
+            solution_finder = solution_finders[finder_name]
             solution = solution_finder.find_solution_ureport(db, report)
             if solution is not None:
                 solutions.append((solution_finder.solution_priority, solution))

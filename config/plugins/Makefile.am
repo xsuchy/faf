@@ -10,6 +10,7 @@ pluginconf_DATA = \
     retrace.conf \
     rhelbz.conf \
     save-reports.conf \
+    sf-prefilter.conf \
     web.conf
 
 pluginconfdir = $(sysconfdir)/faf/plugins
