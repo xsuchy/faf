@@ -191,6 +191,7 @@ from report import *
 from llvm import *
 from sf_prefilter import *
 from debug import *
+from errata import *
 
 
 def column_len(cls, name):

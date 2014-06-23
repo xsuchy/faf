@@ -24,6 +24,7 @@ from pyfaf.storage import (Arch,
                            BzBug,
                            BzComment,
                            BzUser,
+                           ErratumBug,
                            ExternalFafInstance,
                            KernelModule,
                            KernelTaintFlag,
@@ -932,3 +933,22 @@ def get_bz_attachment(db, attachment_id):
     return (db.session.query(BzAttachment)
             .filter(BzAttachment.id == attachment_id)
             .first())
+
+
+def get_bugs_for_erratum(db, erratum_id):
+    """
+    Return ErratumBugs for given `erratum_id`.
+    """
+
+    return (db.session.query(ErratumBug)
+                      .filter(ErratumBug.erratum_id == erratum_id))
+
+
+def get_erratum_bugs_for_erratum(db, erratum_id, erratum_bug_ids):
+    """
+    Return ErratumBug with bug_id in `erratum_bug_ids` for given `erratum_id`.
+    """
+
+    return (db.session.query(ErratumBug)
+                      .filter(ErratumBug.erratum_id == erratum_id)
+                      .filter(ErratumBug.bug_id.in_(erratum_bug_ids)))
