@@ -33,7 +33,8 @@ from pyfaf.storage.bugzilla import (BzBug,
                                     BzBugCc,
                                     BzComment,
                                     BzAttachment,
-                                    BzBugHistory)
+                                    BzBugHistory,
+                                    BzExternalBug)
 
 from pyfaf.bugtrackers import BugTracker
 
@@ -79,7 +80,8 @@ class Bugzilla(BugTracker):
         self.log_debug("Opening bugzilla connection for '{0}'"
                        .format(self.name))
 
-        self.bz = bugzilla.Bugzilla(url=str(self.api_url), cookiefile=None)
+        self.bz = bugzilla.Bugzilla(url=str(self.api_url), cookiefile=None,
+                                    tokenfile=None)
 
         if self.user and self.password:
             self.log_debug("Logging into bugzilla '{0}' as '{1}'"
@@ -230,6 +232,7 @@ class Bugzilla(BugTracker):
             "reporter",
             "comments",
             "attachments",
+            "external_bugs",
         ]
 
         bug_dict = dict()
@@ -363,6 +366,7 @@ class Bugzilla(BugTracker):
         self._save_history(db, bug_dict["history"], new_bug.id)
         self._save_attachments(db, bug_dict["attachments"], new_bug.id)
         self._save_comments(db, bug_dict["comments"], new_bug.id)
+        self._save_external_bugs(db, bug_dict["external_bugs"], new_bug.id)
 
         return new_bug
 
@@ -563,7 +567,7 @@ class Bugzilla(BugTracker):
                 if attachment:
                     new.attachment = attachment
                 else:
-                    self.log_warning("Comment is referencing an attachment"
+                    self.log_warn("Comment is referencing an attachment"
                                      " which is not accessible.")
 
             new.number = num
@@ -581,6 +585,47 @@ class Bugzilla(BugTracker):
 
         db.session.flush()
 
+    def _save_external_bugs(self, db, external_bugs, new_bug_id):
+        """
+        Save external bugs to the database.
+
+        Expects list of `external_bugs` and ID of the bug as `new_bug_id`.
+        """
+
+        total = len(external_bugs)
+        external_bug_ids = set(ebid for (ebid, ) in
+                               queries.get_bz_bug_external_bugs(db, new_bug_id)
+                               .values('id'))
+        for num, external_bug in enumerate(external_bugs):
+            self.log_debug("Processing external bug {0}/{1}".format(num + 1,
+                           total))
+
+            ext_bug_id = int(external_bug["id"])
+            if ext_bug_id in external_bug_ids:
+                self.log_debug("Skipping existing external bug #{0}".format(
+                    ext_bug_id))
+                external_bug_ids.remove(ext_bug_id)
+                continue
+
+            new = BzExternalBug()
+            new.id = ext_bug_id
+            new.bug_id = new_bug_id
+            new.ext_status = external_bug["ext_status"]
+            new.type_id = external_bug["type"]["id"]
+            new.type_description = external_bug["type"]["description"]
+            new.ext_bug_id = external_bug["ext_bz_bug_id"]
+
+            new = db.session.merge(new)
+
+        # Delete external bugs that are in FAF db, but not in BZ
+        if len(external_bug_ids) > 0:
+            self.log_info("Deleting {0} extra external bugs for bug #{1}"
+                          .format(len(external_bug_ids), new_bug_id))
+            (queries.get_bz_external_bugs(db, external_bug_ids)
+                    .delete(synchronize_session='fetch'))
+
+        db.session.flush()
+
     @retry(3, delay=10, backoff=3, verbose=True)
     def _download_user(self, user_email):
         """
@@ -590,6 +635,7 @@ class Bugzilla(BugTracker):
         self.log_debug("Downloading user {0}".format(user_email))
         self._connect()
         user = self.bz.getuser(user_email)
+
         return user
 
     def _save_user(self, db, user):
@@ -668,6 +714,7 @@ class Bugzilla(BugTracker):
             'cf_environment': origbug.cf_environment,
             'groups': origbug.groups
         }
+        # TODO: somehow add external bugs
 
         for key in data:
             if data[key] is None:

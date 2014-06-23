@@ -24,6 +24,7 @@ from pyfaf.storage import (Arch,
                            BzBug,
                            BzComment,
                            BzUser,
+                           BzExternalBug,
                            ErratumBug,
                            ExternalFafInstance,
                            KernelModule,
@@ -87,7 +88,8 @@ __all__ = ["get_arch_by_name", "get_archs", "get_associate_by_name",
            "get_ssources_for_retrace", "get_supported_components",
            "get_symbol_by_name_path", "get_symbolsource",
            "get_taint_flag_by_ureport_name", "get_unknown_opsys",
-           "get_unknown_package", "update_frame_ssource"]
+           "get_unknown_package", "update_frame_ssource",
+           "get_bz_bug_external_bugs", "get_bz_external_bugs"]
 
 
 def get_arch_by_name(db, arch_name):
@@ -933,6 +935,24 @@ def get_bz_attachment(db, attachment_id):
     return (db.session.query(BzAttachment)
             .filter(BzAttachment.id == attachment_id)
             .first())
+
+
+def get_bz_bug_external_bugs(db, bug_id):
+    """
+    Return BzExternalBugs with bug_iq equal to `bug_id`.
+    """
+
+    return (db.session.query(BzExternalBug)
+            .filter(BzExternalBug.bug_id == bug_id))
+
+
+def get_bz_external_bugs(db, external_bug_ids):
+    """
+    Return BzExternalBugs whose id is in `external_bug_ids`.
+    """
+
+    return (db.session.query(BzExternalBug)
+                      .filter(BzExternalBug.id.in_(external_bug_ids)))
 
 
 def get_bugs_for_erratum(db, erratum_id):
