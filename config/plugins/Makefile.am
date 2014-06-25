@@ -11,6 +11,7 @@ pluginconf_DATA = \
     retrace.conf \
     rhelbz.conf \
     save-reports.conf \
+    sf-errata.conf \
     sf-prefilter.conf \
     web.conf
 

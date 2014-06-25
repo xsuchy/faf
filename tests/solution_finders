@@ -1,0 +1,123 @@
+#!/usr/bin/python
+# -*- encoding: utf-8 -*-
+import unittest2 as unittest
+import logging
+import json
+
+import faftests
+
+from datetime import datetime
+from pyfaf.solutionfinders import find_solutions
+from pyfaf.storage import (SfPrefilterSolution, SfPrefilterPackageName,
+                           OpSysRelease, OpSys, Arch, OpSysComponent, Report,
+                           BzBug, BzUser, Bugtracker, ReportBz, Erratum,
+                           ErratumBug)
+
+
+class SolutionFindersTestCase(faftests.DatabaseCase):
+
+    """
+    Test case for pyfaf.solutionfinders
+    """
+
+    def setUp(self):
+        super(SolutionFindersTestCase, self).setUp()
+
+        arch = Arch(name="x86_64")
+        self.db.session.add(arch)
+
+        noarch = Arch(name="noarch")
+        self.db.session.add(noarch)
+
+        sys = OpSys(name="Fedora")
+        self.db.session.add(sys)
+
+        self.fc20 = OpSysRelease(opsys=sys, version="20", status="ACTIVE")
+        self.db.session.add(self.fc20)
+
+        self.comp_systemd = OpSysComponent(opsys=sys, name="systemd")
+        self.db.session.add(self.comp_systemd)
+
+        self.db.session.flush()
+
+    def test_solution_finder(self):
+        prefilter_sol1 = SfPrefilterSolution(
+            cause="VLC Media Player",
+            note_text="VLC unsupported.",
+            note_html="<html><b>VLC unsupported.</b><html>",
+            url="http://www.fedoraproject.org")
+        self.db.session.add(prefilter_sol1)
+
+        prefilter_pat1 = SfPrefilterPackageName(
+            pattern="^ibus-table",
+            solution=prefilter_sol1)
+        self.db.session.add(prefilter_pat1)
+
+        prefilter_pat2 = SfPrefilterPackageName(
+            pattern="^systemd",
+            solution=prefilter_sol1)
+        self.db.session.add(prefilter_pat2)
+
+        self.db.session.flush()
+
+        sample_report_names = ('ureport1', 'ureport2', 'ureport_core',
+                               'ureport_python', 'ureport_kerneloops',
+                               'ureport_java')
+        sample_reports = {}
+        for report_name in sample_report_names:
+            with open("sample_reports/{0}".format(report_name), "r") as file:
+                sample_reports[report_name] = json.load(file)
+
+        self.assertEqual(
+            len(find_solutions(sample_reports["ureport_kerneloops"], self.db)),
+            0)
+        self.assertEqual(
+            len(find_solutions(sample_reports["ureport_python"], self.db)), 1)
+        self.assertEqual(
+            len(find_solutions(sample_reports["ureport_core"], self.db)), 1)
+
+        self.save_report("ureport_core")
+        report = self.db.session.query(Report).first()
+
+        mockzilla = Bugtracker(name="mockzilla")
+        self.db.session.add(mockzilla)
+
+        bzuser = BzUser(
+            email="user@bz.org",
+            name="bzser",
+            real_name="Bz User",
+            can_login=True)
+        self.db.session.add(bzuser)
+
+        bzbug = BzBug(
+            summary="Summary...",
+            status="NEW",
+            creation_time=datetime.now(),
+            last_change_time=datetime.now(),
+            tracker=mockzilla,
+            opsysrelease=self.fc20,
+            component=self.comp_systemd,
+            whiteboard="whiteboard",
+            creator=bzuser
+            )
+        self.db.session.add(bzbug)
+
+        reportbz = ReportBz(report=report, bzbug=bzbug)
+        self.db.session.add(reportbz)
+
+        erratum = Erratum(advisory_name="ADVISORY-1", synopsis="Synopsis.")
+        self.db.session.add(erratum)
+
+        erratumbug = ErratumBug(erratum=erratum, bug=bzbug)
+        self.db.session.add(erratumbug)
+
+        self.db.session.flush()
+
+        self.assertEqual(
+            len(find_solutions(sample_reports["ureport_python"], self.db)), 1)
+        self.assertEqual(
+            len(find_solutions(sample_reports["ureport_core"], self.db)), 2)
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
+    unittest.main()

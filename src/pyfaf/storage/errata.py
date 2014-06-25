@@ -22,6 +22,7 @@ from . import Integer
 from . import String
 from . import ForeignKey
 from . import relationship
+from . import BzBug
 
 
 class Erratum(GenericTable):
@@ -36,8 +37,11 @@ class ErratumBug(GenericTable):
     __tablename__ = "erratumbugs"
 
     id = Column(Integer, primary_key=True)
-    bug_id = Column(Integer, primary_key=True)
+    bug_id = Column(Integer, ForeignKey("{0}.id".format(BzBug.__tablename__)), nullable=False, index=True)
     erratum_id = Column(Integer, ForeignKey("{0}.id".format(Erratum.__tablename__)), nullable=False, index=True)
 
     erratum = relationship(Erratum, primaryjoin="ErratumBug.erratum_id == Erratum.id",
-                       backref="bugs")
+                           backref="erratum_bugs")
+
+    bug = relationship(BzBug, primaryjoin="ErratumBug.bug_id == BzBug.id",
+                       backref="erratum_bugs")

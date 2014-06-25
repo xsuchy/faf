@@ -15,7 +15,7 @@ from sqlalchemy.sql.expression import desc, literal
 
 from pyfaf import ureport
 from pyfaf.config import config
-from pyfaf.solutionfinders import find_solution
+from pyfaf.solutionfinders import find_solutions
 from pyfaf.local import var
 from pyfaf.problemtypes import problemtypes
 from pyfaf.storage.opsys import (OpSys,
@@ -278,6 +278,9 @@ def new(request):
     if request.method == 'POST':
         form = NewReportForm(request.POST, request.FILES)
         if form.is_valid():
+            import logging
+            logging.basicConfig()
+            logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)   
             db = pyfaf.storage.getDatabase()
             report = form.cleaned_data['file']['converted']
 
@@ -317,19 +320,18 @@ def new(request):
                     report2 = None
 
                 if report2 is not None:
-                    solution = find_solution(report2, db=db)
-                    if solution is not None:
-                        response['message'] = ("Your problem seems to be caused by {0}\n\n"
-                                               "{1}".format(solution.cause, solution.note_text))
-                        if solution.url:
-                            response['message'] += ("\n\nYou can get more information at {0}"
-                                                    .format(solution.url))
-
+                    solutions = find_solutions(report2, db=db)
+                    if len(solutions) > 0:
+                        response['message'] = "\n".join(
+                            ["Your problem seems to be caused by:"] +
+                            ["* {0}\n  {1}\n  More information at: {2}\n".format(
+                                solution.cause, solution.note_text, solution.url)
+                                for solution in solutions])
                         response['solutions'] = [{'cause': solution.cause,
                                                   'note':  solution.note_text,
-                                                  'url':   solution.url}]
+                                                  'url':   solution.url}
+                                                 for solution in solutions]
                         response['result'] = True
-
                     try:
                         problemplugin = problemtypes[report2["problem"]["type"]]
                         response["bthash"] = problemplugin.hash_ureport(report2["problem"])

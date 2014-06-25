@@ -373,6 +373,13 @@ Requires: %{name} = %{faf_version}
 %description solutionfinder-prefilter
 A plugin for %{name} implementing the Prefilter solution finder
 
+%package solutionfinder-errata
+Summary: %{name}'s solution-finder-errata plugin
+Requires: %{name} = %{faf_version}
+
+%description solutionfinder-errata
+A plugin for %{name} implementing the Errata solution finder
+
 %prep
 %setup -q
 ./autogen.sh
@@ -860,6 +867,11 @@ exit 0
 %files solutionfinder-prefilter
 %{python_sitelib}/pyfaf/solutionfinders/prefilter_solution_finder.py*
 %config(noreplace) %{_sysconfdir}/faf/plugins/sf-prefilter.conf
+
+%files solutionfinder-errata
+%{python_sitelib}/pyfaf/solutionfinders/errata_solution_finder.py*
+%config(noreplace) %{_sysconfdir}/faf/plugins/sf-errata.conf
+
 
 %changelog
 * Mon Apr 15 2013 Michal Toman <mtoman@redhat.com> 0.9-1

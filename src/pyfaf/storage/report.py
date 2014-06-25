@@ -469,7 +469,7 @@ class ReportBz(GenericTable):
     report_id = Column(Integer, ForeignKey("{0}.id".format(Report.__tablename__)), primary_key=True)
     bzbug_id = Column(Integer, ForeignKey("{0}.id".format(BzBug.__tablename__)), primary_key=True)
     report = relationship(Report, backref="bz_bugs")
-    bzbug = relationship(BzBug)
+    bzbug = relationship(BzBug, backref="report_bzs")
 
 
 class ReportRaw(GenericTable):

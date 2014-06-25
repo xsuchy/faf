@@ -25,6 +25,7 @@ from pyfaf.storage import (Arch,
                            BzComment,
                            BzUser,
                            BzExternalBug,
+                           Erratum,
                            ErratumBug,
                            ExternalFafInstance,
                            KernelModule,
@@ -43,6 +44,7 @@ from pyfaf.storage import (Arch,
                            ReportBtFrame,
                            ReportBtHash,
                            ReportBtThread,
+                           ReportBz,
                            ReportExecutable,
                            ReportHash,
                            ReportHistoryDaily,
@@ -89,7 +91,8 @@ __all__ = ["get_arch_by_name", "get_archs", "get_associate_by_name",
            "get_symbol_by_name_path", "get_symbolsource",
            "get_taint_flag_by_ureport_name", "get_unknown_opsys",
            "get_unknown_package", "update_frame_ssource",
-           "get_bz_bug_external_bugs", "get_bz_external_bugs"]
+           "get_bz_bug_external_bugs", "get_bz_external_bugs",
+           "get_errata_for_report", "get_errata_for_report_hash"]
 
 
 def get_arch_by_name(db, arch_name):
@@ -972,3 +975,30 @@ def get_erratum_bugs_for_erratum(db, erratum_id, erratum_bug_ids):
     return (db.session.query(ErratumBug)
                       .filter(ErratumBug.erratum_id == erratum_id)
                       .filter(ErratumBug.bug_id.in_(erratum_bug_ids)))
+
+
+def get_errata_for_report(db, db_report):
+    """
+    Return Errata for given Report.
+    """
+
+    return (db.session.query(Erratum)
+                      .join(Erratum.erratum_bugs)
+                      .join(ErratumBug.bug)
+                      .join(BzBug.report_bzs)
+                      .join(ReportBz.report)
+                      .filter(Report.id == db_report.id))
+
+
+def get_errata_for_report_hash(db, report_hash):
+    """
+    Return Errata for given `report_hash`.
+    """
+
+    return (db.session.query(Erratum)
+                      .join(Erratum.erratum_bugs)
+                      .join(ErratumBug.bug)
+                      .join(BzBug.report_bzs)
+                      .join(ReportBz.report)
+                      .join(Report.hashes)
+                      .filter(ReportHash.hash == report_hash))

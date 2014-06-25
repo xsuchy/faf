@@ -17,13 +17,12 @@
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-from pyfaf.solutionfinders import SolutionFinder
+from pyfaf.solutionfinders import SolutionFinder, Solution
 from pyfaf.common import log
 from pyfaf.opsys import systems
 from pyfaf.problemtypes import problemtypes
 from pyfaf.queries import (get_sf_prefilter_btpaths, get_sf_prefilter_pkgnames,
                            get_opsys_by_name)
-from pyfaf.ureport_compat import ureport1to2
 
 
 class PrefilterSolutionFinder(SolutionFinder):
@@ -72,15 +71,15 @@ class PrefilterSolutionFinder(SolutionFinder):
 
         return result
 
-    def find_solution_ureport(self, db, ureport):
+    def _sf_prefilter_solution_to_solution(self, sfsolution):
+        return Solution(sfsolution.cause, sfsolution.url, sfsolution.note_text,
+                        sfsolution.note_html)
+
+    def find_solutions_ureport(self, db, ureport):
         """
         Check whether uReport matches a knowledgebase
         entry. Return a pyfaf.storage.SfPrefilterSolution object or None.
         """
-
-        if "ureport_version" in ureport and ureport["ureport_version"] == 1:
-            ureport = ureport1to2(ureport)
-
         osname = ureport["os"]["name"]
         if osname not in systems:
             log.warn("Operating system '{0}' is not supported".format(osname))
@@ -94,7 +93,7 @@ class PrefilterSolutionFinder(SolutionFinder):
                 pkgname_parsers = self._get_pkgname_parsers(db, db_opsys=db_opsys)
                 for parser, solution in pkgname_parsers.items():
                     if osplugin.check_pkgname_match(ureport["packages"], parser):
-                        return solution
+                        return [self._sf_prefilter_solution_to_solution(solution)]
 
         ptype = ureport["problem"]["type"]
         if ptype not in problemtypes:
@@ -104,11 +103,11 @@ class PrefilterSolutionFinder(SolutionFinder):
             btpath_parsers = self._get_btpath_parsers(db, db_opsys=db_opsys)
             for parser, solution in btpath_parsers.items():
                 if problemplugin.check_btpath_match(ureport["problem"], parser):
-                    return solution
+                    return [self._sf_prefilter_solution_to_solution(solution)]
 
-        return None
+        return []
 
-    def find_solution_db_report(self, db, db_report, db_opsys=None):
+    def find_solutions_db_report(self, db, db_report, db_opsys=None):
         """
         Check whether a pyfaf.storage.Report object matches a knowledgebase
         entry. Return a pyfaf.storage.SfPrefilterSolution object or None.
@@ -118,7 +117,7 @@ class PrefilterSolutionFinder(SolutionFinder):
         for parser, solution in pkgname_parsers.items():
             for db_report_package in db_report.packages:
                 if parser.match(db_report_package.installed_package.nvra()):
-                    return solution
+                    return [self._sf_prefilter_solution_to_solution(solution)]
 
         btpath_parsers = self._get_btpath_parsers(db, db_opsys=db_opsys)
         for parser, solution in btpath_parsers.items():
@@ -129,6 +128,6 @@ class PrefilterSolutionFinder(SolutionFinder):
 
                     for db_frame in db_thread.frames:
                         if parser.match(db_frame.symbolsource.path):
-                            return solution
+                            return [self._sf_prefilter_solution_to_solution(solution)]
 
-        return None
+        return []
