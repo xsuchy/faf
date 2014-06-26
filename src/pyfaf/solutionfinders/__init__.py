@@ -104,6 +104,7 @@ def find_solution(report, db=None, finders=None):
     uReport dict). Return Solution object for the
     solution with the highest priority (i.e. lowest number) or None.
     """
+
     solutions = find_solutions(report, db, finders)
 
     if isinstance(solutions, list) and len(solutions) > 0:

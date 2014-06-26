@@ -29,7 +29,8 @@ class ErrataSolutionFinder(SolutionFinder):
         super(ErrataSolutionFinder, self).__init__()
 
         self.load_config_to_self("advisory_url",
-                                 "errata.erratatooladvisoryurlreadable")
+                                 "errata.erratatooladvisoryurlreadable",
+                                 "Erratum ID {0}")
 
     def _errata_to_solutions(self, errata):
         return [Solution(erratum.advisory_name,

@@ -21,7 +21,8 @@ from pyfaf.solutionfinders import SolutionFinder, Solution
 from pyfaf.common import log
 from pyfaf.opsys import systems
 from pyfaf.problemtypes import problemtypes
-from pyfaf.queries import (get_sf_prefilter_btpaths, get_sf_prefilter_pkgnames,
+from pyfaf.queries import (get_sf_prefilter_btpaths,
+                           get_sf_prefilter_pkgnames,
                            get_opsys_by_name)
 
 
