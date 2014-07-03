@@ -301,14 +301,25 @@ def new(request):
                 logging.exception(e)
                 dbreport = None
 
+            response = {}
             known = bool(dbreport)
             spool_dir = get_spool_dir("reports")
             fname = str(uuid.uuid4())
             with open(os.path.join(spool_dir, 'incoming', fname), 'w') as fil:
-                fil.write(form.cleaned_data['file']['json'])
+                if request.META.get("SSL_CLIENT_VERIFY", False) in ("GENEROUS", "SUCCESS") and "SSL_CLIENT_S_DN_CN" in request.META:
+                    report['_auth'] = {
+                        "cn": request.META["SSL_CLIENT_S_DN_CN"],
+                        "dn": request.META["SSL_CLIENT_S_DN"]
+                        }
+                    json.dump(report, fil, indent=2)
+                else:
+                    if report.pop('_auth', False):
+                        json.dump(report, fil, indent=2)
+                    else:
+                        fil.write(form.cleaned_data['file']['json'])
 
             if 'application/json' in request.META.get('HTTP_ACCEPT'):
-                response = {'result': known }
+                response['result'] = known
 
                 opsys_id = None
                 opsys = db.session.query(OpSys).filter(OpSys.name == report["os"]["name"]).first()
