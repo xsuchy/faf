@@ -30,6 +30,7 @@ from pyfaf.storage import (Arch,
                            KbSolution,
                            KernelModule,
                            KernelTaintFlag,
+                           MantisBug,
                            OpSys,
                            OpSysComponent,
                            OpSysRelease,
@@ -939,4 +940,15 @@ def get_bz_attachment(db, attachment_id):
 
     return (db.session.query(BzAttachment)
             .filter(BzAttachment.id == attachment_id)
+            .first())
+
+
+def get_mantis_bug(db, bug_id):
+    """
+    Return MantisBug instance if there is a bug in the database
+    with `bug_id` id.
+    """
+
+    return (db.session.query(MantisBug)
+            .filter(MantisBug.id == bug_id)
             .first())

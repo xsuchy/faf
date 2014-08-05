@@ -174,6 +174,7 @@ from symbol import *
 from problem import *
 from bugtracker import *
 from bugzilla import *
+from mantisbt import *
 from externalfaf import *
 from report import *
 from llvm import *

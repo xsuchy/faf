@@ -11,6 +11,7 @@ storage_PYTHON = \
     kb.py \
     llvm.py \
     opsys.py \
+    mantisbt.py \
     problem.py \
     project.py \
     report.py \

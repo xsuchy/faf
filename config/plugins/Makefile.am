@@ -1,5 +1,6 @@
 pluginconf_DATA = \
     clonebz.conf \
+    centosmantisbt.conf \
     coredump.conf \
     create-problems.conf \
     fedora.conf \
