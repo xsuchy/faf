@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load custom_filters %}
+{% load url from future %}
 
 {% block title %}Problem #{{ problem.id }}{% endblock %}
 
@@ -31,6 +32,10 @@
         <dd>{{ problem.first_occurrence|date:"Y-m-d" }}</dd>
         <dt>Last occurrence</dt>
         <dd>{{ problem.last_occurrence|date:"Y-m-d" }}</dd>
+        {% if problem.probably_fixed_since %}
+        <dt>Probably fixed</dt>
+        <dd>{{ problem.probably_fixed_since|date:"Y-m-d" }}</dd>
+        {% endif %}
         <dt>Components</dt>
         <dd>
           {% for name in problem.unique_component_names %}
@@ -43,6 +48,8 @@
             {{ problem.status }}
           </span>
         </dd>
+        <dt class="debug">Quality</dt>
+        <dd class="debug">{{ problem.quality }}</dd>
         {% if problem.bugs %}
           <dt>External links</dt>
           <dd>
@@ -122,13 +129,24 @@
         {% endwith %}
       {% endwith %}
 
-      {% with 'Package' as metric_name %}
+      {% with 'Package NEVR' as metric_name %}
         {% with 3 as row_limit %}
-          {% with packages.items as data %}
+          {% with packages_nevr as data %}
             {% include 'metric_table.html' %}
           {% endwith %}
         {% endwith %}
       {% endwith %}
+
+      {% with 'Package name' as metric_name %}
+        {% with 3 as row_limit %}
+          {% with packages_name as data %}
+            {% include 'metric_table.html' %}
+          {% endwith %}
+        {% endwith %}
+      {% endwith %}
+      {% if packages_name %}
+        <p class="muted">Packages names with count less than the total count of reports are most probably not the cause of the problem.</p>
+      {% endif %}
     </div>
   </div>
 

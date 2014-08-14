@@ -17,7 +17,7 @@
 # along with faf.  If not, see <http://www.gnu.org/licenses/>.
 from __future__ import absolute_import
 
-import fedora.client
+import pkgdb2client
 from pyfaf.opsys import System
 from pyfaf.checker import DictChecker, IntChecker, ListChecker, StringChecker
 from pyfaf.common import FafError, log
@@ -33,6 +33,7 @@ from pyfaf.storage import (Arch,
                            ReportPackage,
                            ReportUnknownPackage,
                            column_len)
+from pyfaf.utils.parse import str2bool
 
 __all__ = ["Fedora"]
 
@@ -85,7 +86,13 @@ class Fedora(System):
 
     def __init__(self):
         super(Fedora, self).__init__()
-        self._pkgdb = fedora.client.PackageDB()
+
+        self.load_config_to_self("eol", ["fedora.supporteol"],
+                                 False, callback=str2bool)
+        self.load_config_to_self("pkgdb_url", ["fedora.pkgdburl"],
+                                 "https://admin.fedoraproject.org/pkgdb/")
+
+        self._pkgdb = pkgdb2client.PkgDB(url=self.pkgdb_url)
 
     def _save_packages(self, db, db_report, packages):
         for package in packages:
@@ -170,76 +177,73 @@ class Fedora(System):
 
     def get_releases(self):
         result = {}
-        collections = [c[0] for c in self._pkgdb.get_collection_list()]
+        collections = self._pkgdb.get_collections()["collections"]
+
         for collection in collections:
             # there is EPEL in collections, we are only interested in Fedora
-            if collection.name.lower() != Fedora.name:
+            if collection["name"].lower() != Fedora.name:
                 continue
 
             # "devel" is called "rawhide" on all other places
-            if collection.version.lower() == "devel":
-                collection.version = "rawhide"
+            if collection["version"].lower() == "devel":
+                collection["version"] = "rawhide"
 
-            result[collection.version] = {"status": collection.statuscode,
-                                          "kojitag": collection.koji_name,
-                                          "shortname": collection.branchname, }
+            result[collection["version"]] = {
+                "status": collection["status"].upper().replace(' ', '_'),
+                "kojitag": collection["koji_name"],
+                "shortname": collection["branchname"],
+            }
 
         return result
 
     def get_components(self, release):
-        if release is not None:
-            if not isinstance(release, basestring):
-                release = str(release)
+        branch = self._release_to_pkgdb_branch(release)
 
-            # "rawhide" is called "devel" in pkgdb
-            if release.lower() == "rawhide":
-                collection = "devel"
-            else:
-                try:
-                    release_num = int(release)
-                except ValueError:
-                    raise FafError("{0} is not a valid Fedora version"
-                                   .format(release))
+        try:
+            pkgs = self._pkgdb.get_packages(branches=branch, page='all',
+                                            eol=self.eol)
+        except pkgdb2client.PkgDBException as e:
+            raise FafError("Unable to get components for {0}, error was: {1}"
+                           .format(release, e))
 
-                if release_num > 13:
-                    collection = "f{0}".format(release_num)
-                elif release_num > 6:
-                    collection = "F-{0}".format(release_num)
-                else:
-                    collection = "FC-{0}".format(release_num)
-
-        return self._pkgdb.get_package_list(collectn=collection)
+        return [pkg["name"] for pkg in pkgs["packages"]]
 
     def get_component_acls(self, component, release=None):
-        # "rawhide" is called "devel" in pkgdb
-        if release is not None and release.lower() == "rawhide":
-            release = "devel"
+        branch = None
+        if release:
+            branch = self._release_to_pkgdb_branch(release)
 
         result = {}
 
-        owner_info = self._pkgdb.get_owners(component, collctn_name="Fedora",
-                                            collctn_ver=release)
+        try:
+            packages = self._pkgdb.get_package(component, branches=branch,
+                                               eol=self.eol)
+        except pkgdb2client.PkgDBException as e:
+            self.log_error("Unable to get package information for component"
+                           " {0}, error was: {1}".format(component, e))
+            return result
 
-        # Instance of 'tuple' has no 'packageListings' member
-        # pylint: disable-msg=E1103
-        for rel in owner_info.packageListings:
-            # "devel" is called "rawhide" on all other places
-            if rel.collection.version.lower() == "devel":
-                relname = "rawhide"
-            else:
-                relname = rel.collection.version
+        for pkg in packages["packages"]:
+            acls = {pkg["point_of_contact"]: {"owner": True, }, }
 
-            acls = {rel.owner: {"owner": True, }, }
+            if not "acls" in pkg:
+                continue
 
-            for person in rel.people:
-                if any(person.aclOrder.values()):
-                    acls[person.username] = {}
-                    for acl, value in person.aclOrder.items():
-                        acls[person.username][acl] = value is not None
+            for acl in pkg["acls"]:
+                aclname = acl["acl"]
+                person = acl["fas_name"]
+                status = acl["status"] == "Approved"
 
-            if release is not None:
+                if person in acls:
+                    acls[person][aclname] = status
+                else:
+                    acls[person] = {aclname: status}
+
+            if release:
                 return acls
 
+            branch = pkg["branchname"]
+            relname = self._pkgdb_branch_to_release(branch)
             result[relname] = acls
 
         return result
@@ -265,3 +269,43 @@ class Fedora(System):
                 return True
 
         return False
+
+    def _release_to_pkgdb_branch(self, release):
+        """
+        Convert faf's release to pkgdb2 branch name
+        """
+
+        if not isinstance(release, basestring):
+            release = str(release)
+
+        # "rawhide" is called "master" in pkgdb2
+        if release.lower() == "rawhide":
+            branch = "master"
+        elif release.isdigit():
+            int_release = int(release)
+            if int_release < 6:
+                branch = "FC-{0}".format(int_release)
+            elif int_release == 6:
+                branch = "fc{0}".format(int_release)
+            else:
+                branch = "f{0}".format(int_release)
+        else:
+            raise FafError("{0} is not a valid Fedora version")
+
+        return branch
+
+    def _pkgdb_branch_to_release(self, branch):
+        """
+        Convert pkgdb2 branch name to faf's release
+        """
+
+        if branch == "master":
+            return "rawhide"
+
+        if branch.startswith("fc"):
+            return branch[2:]
+
+        if branch.startswith("FC-"):
+            return branch[3:]
+
+        return branch[1:]

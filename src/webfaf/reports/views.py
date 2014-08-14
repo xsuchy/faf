@@ -2,6 +2,7 @@ import os
 import uuid
 import json
 import pyfaf
+import logging
 
 from django.core.urlresolvers import reverse
 from django.contrib.sites.models import RequestSite
@@ -18,6 +19,7 @@ from pyfaf.config import config
 from pyfaf.solutionfinders import find_solutions
 from pyfaf.local import var
 from pyfaf.problemtypes import problemtypes
+from pyfaf.queries import get_report_by_hash
 from pyfaf.storage.opsys import (OpSys,
                                  OpSysRelease,
                                  OpSysComponent,
@@ -35,15 +37,17 @@ from pyfaf.storage.report import (Report,
                                   ReportBz,
                                   ReportUnknownPackage)
 from pyfaf.storage.debug import InvalidUReport
+from pyfaf.storage.bugzilla import BzBug
 from pyfaf.ureport import ureport2
 
 from pyfaf.common import FafError
-from webfaf.common.utils import paginate, diff
+from webfaf.common.utils import paginate, diff as utils_diff
 from webfaf.common.forms import OsComponentFilterForm
 
 from webfaf.reports.forms import (NewReportForm,
                                   NewAttachmentForm,
                                   ReportFilterForm)
+from operator import itemgetter
 
 def index(request, *args, **kwargs):
     db = pyfaf.storage.getDatabase()
@@ -107,7 +111,7 @@ def listing(request, *args, **kwargs):
     reports = (db.session.query(Report.id, literal(0).label('rank'),
             states.c.status, Report.first_occurrence.label('created'),
             Report.last_occurrence.label('last_change'),
-            OpSysComponent.name.label('component'), Report.type)
+            OpSysComponent.name.label('component'), Report.type, Report.count)
         .join(ReportOpSysRelease)
         .join(OpSysComponent)
         .filter(states.c.id==Report.id)
@@ -210,6 +214,21 @@ def item(request, report_id):
 
     packages = load_packages(db, report_id, "CRASHED")
     related_packages = load_packages(db, report_id, "RELATED")
+    related_packages_nevr = sorted(
+        [("{0}-{1}:{2}-{3}".format(
+            pkg.iname, pkg.iepoch, pkg.iversion, pkg.irelease),
+         pkg.count) for pkg in related_packages],
+        key=itemgetter(0))
+
+    merged_name = dict()
+    for package in related_packages:
+        if package.iname in merged_name:
+            merged_name[package.iname] += package.count
+        else:
+            merged_name[package.iname] = package.count
+
+    related_packages_n = sorted(merged_name.items(), key=itemgetter(1),
+                                reverse=True)
 
     try:
         backtrace = report.backtraces[0].frames
@@ -231,7 +250,8 @@ def item(request, report_id):
                                  'weekly_history': weekly_history,
                                  'monthly_history': monthly_history,
                                  'crashed_packages': packages,
-                                 'related_packages': related_packages,
+                                 'related_packages_nevr': related_packages_nevr,
+                                 'related_packages_n': related_packages_n,
                                  'backtrace': backtrace},
                                 context_instance=RequestContext(request))
 
@@ -248,10 +268,10 @@ def diff(request, lhs_id, rhs_id):
     if lhs is None or rhs is None:
         raise Http404
 
-    frames_diff = diff(lhs.backtraces[0].frames,
-                       rhs.backtraces[0].frames,
-                       lambda lhs, rhs:
-                       lhs.symbolsource.symbol == rhs.symbolsource.symbol)
+    frames_diff = utils_diff(lhs.backtraces[0].frames,
+                             rhs.backtraces[0].frames,
+                             lambda lhs, rhs:
+                             lhs.symbolsource.symbol == rhs.symbolsource.symbol)
 
     return render_to_response('reports/diff.html',
                                 {'diff': frames_diff,
@@ -297,7 +317,8 @@ def new(request):
 
             try:
                 dbreport = ureport.is_known(report, db, return_report=True)
-            except:
+            except Exception as e:
+                logging.exception(e)
                 dbreport = None
 
             known = bool(dbreport)
@@ -335,8 +356,8 @@ def new(request):
                     try:
                         problemplugin = problemtypes[report2["problem"]["type"]]
                         response["bthash"] = problemplugin.hash_ureport(report2["problem"])
-                    except:
-                        # ToDo - log the exception somehow
+                    except Exception as e:
+                        logging.exception(e)
                         pass
 
                 if known:
@@ -346,13 +367,17 @@ def new(request):
                               "value": "https://{0}{1}".format(site.domain, url),
                               "type": "url"}]
 
-                    bugs = db.session.query(ReportBz).filter(ReportBz.report_id == dbreport.id).all()
+                    bugs = (db.session.query(BzBug)
+                                      .join(ReportBz)
+                                      .filter(ReportBz.bzbug_id == BzBug.id)
+                                      .filter(ReportBz.report_id == dbreport.id)
+                                      .all())
                     for bug in bugs:
                         parts.append({"reporter": "Bugzilla",
                                       "value": bug.url,
                                       "type": "url"})
 
-                    if not 'message' in response:
+                    if 'message' not in response:
                         response['message'] = ''
                     else:
                         response['message'] += '\n\n'
@@ -434,17 +459,16 @@ def attach(request):
 
 def bthash_forward(request, bthash):
     db = pyfaf.storage.getDatabase()
-    reportbt = db.session.query(ReportBtHash).filter(ReportBtHash.hash == bthash).first()
-    if reportbt is None:
+    db_report = get_report_by_hash(db, bthash)
+    if db_report is None:
         raise Http404
 
-    if (reportbt.backtrace is None or
-        reportbt.backtrace.report is None):
+    if len(db_report.backtraces) < 1:
         return render_to_response("reports/waitforit.html")
 
     response = HttpResponse(status=302)
     response["Location"] = reverse('webfaf.reports.views.item',
-                                   args=[reportbt.backtrace.report.id])
+                                   args=[db_report.id])
 
     return response
 

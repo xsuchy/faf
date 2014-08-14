@@ -3,9 +3,11 @@ pluginconf_DATA = \
     coredump.conf \
     create-problems.conf \
     errata.conf \
+    fedora.conf \
     fedorabz.conf \
     java.conf \
     kerneloops.conf \
+    mark-probably-fixed.conf \
     pull-reports.conf \
     python.conf \
     retrace.conf \

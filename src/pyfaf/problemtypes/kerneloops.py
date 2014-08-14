@@ -91,7 +91,8 @@ class KerneloopsProblem(ProblemType):
 
         "taint_flags": ListChecker(StringChecker(allowed=tainted_flags.keys())),
 
-        "modules":     ListChecker(StringChecker(pattern=r"^[a-zA-Z0-9_]+(\([A-Z\+\-]+\))?$")),
+        "modules":     ListChecker(StringChecker(pattern=r"^[a-zA-Z0-9_]+(\([A-Z\+\-]+\))?$"),
+                                   mandatory=False),
 
         "raw_oops": StringChecker(maxlen=Report.__lobs__["oops"],
                                   mandatory=False),
@@ -230,12 +231,15 @@ class KerneloopsProblem(ProblemType):
         3.10.0-3.fc19.x86_64
         3.10.0-3.fc19.armv7hl.tegra
         2.6.32-358.14.1.el6.i686.PAE
+        3.15.6-200.fc20.i686+PAE
         """
 
         arch = None
         flavour = None
 
-        head, tail = build_id.rsplit(".", 1)
+        splitby = "+" if "+" in build_id else "."
+
+        head, tail = build_id.rsplit(splitby, 1)
         if tail in archs:
             arch = tail
         else:
@@ -287,6 +291,14 @@ class KerneloopsProblem(ProblemType):
         return dep.name
 
     def validate_ureport(self, ureport):
+        # we want to keep unreliable frames without function name RHBZ#1119072
+        if "frames" in ureport:
+            for frame in ureport["frames"]:
+                if ("function_name" not in frame and
+                    "reliable" in frame and
+                    not frame["reliable"]):
+                    frame["function_name"] = "_unknown_"
+
         KerneloopsProblem.checker.check(ureport)
         return True
 
@@ -445,28 +457,29 @@ class KerneloopsProblem(ProblemType):
                 db_bttaintflag.taintflag = db_taintflag
                 db.session.add(db_bttaintflag)
 
-            new_modules = {}
+            if "modules" in ureport:
+                new_modules = {}
 
-            # use set() to remove duplicates
-            for module in set(ureport["modules"]):
-                idx = module.find("(")
-                if idx >= 0:
-                    module = module[:idx]
+                # use set() to remove duplicates
+                for module in set(ureport["modules"]):
+                    idx = module.find("(")
+                    if idx >= 0:
+                        module = module[:idx]
 
-                db_module = get_kernelmodule_by_name(db, module)
-                if db_module is None:
-                    if module in new_modules:
-                        db_module = new_modules[module]
-                    else:
-                        db_module = KernelModule()
-                        db_module.name = module
-                        db.session.add(db_module)
-                        new_modules[module] = db_module
+                    db_module = get_kernelmodule_by_name(db, module)
+                    if db_module is None:
+                        if module in new_modules:
+                            db_module = new_modules[module]
+                        else:
+                            db_module = KernelModule()
+                            db_module.name = module
+                            db.session.add(db_module)
+                            new_modules[module] = db_module
 
-                db_btmodule = ReportBtKernelModule()
-                db_btmodule.kernelmodule = db_module
-                db_btmodule.backtrace = db_backtrace
-                db.session.add(db_btmodule)
+                    db_btmodule = ReportBtKernelModule()
+                    db_btmodule.kernelmodule = db_module
+                    db_btmodule.backtrace = db_backtrace
+                    db.session.add(db_btmodule)
 
             # do not overwrite an existing oops
             if not db_report.has_lob("oops"):

@@ -55,6 +55,7 @@ class Report(GenericTable):
     last_occurrence = Column(DateTime)
     count = Column(Integer, nullable=False)
     errname = Column(String(256), nullable=True)
+    probable_fix = Column(String(256), nullable=True)
     component_id = Column(Integer, ForeignKey("{0}.id".format(OpSysComponent.__tablename__)), nullable=False, index=True)
     problem_id = Column(Integer, ForeignKey("{0}.id".format(Problem.__tablename__)), nullable=True, index=True)
     component = relationship(OpSysComponent)
@@ -123,6 +124,7 @@ class ReportBacktrace(GenericTable):
     report_id = Column(Integer, ForeignKey("{0}.id".format(Report.__tablename__)), nullable=False, index=True)
     report = relationship(Report, backref="backtraces")
     crashfn = Column(String(1024), nullable=True)
+    quality = Column(Integer, nullable=False)
 
     @property
     def crash_function(self):
@@ -130,32 +132,6 @@ class ReportBacktrace(GenericTable):
             return self.crashfn
 
         return 'unknown function'
-
-    @property
-    def quality(self):
-        '''
-        Frames with missing information lower the backtrace quality.
-        '''
-        quality = -len(self.taint_flags)
-
-        # empty backtrace
-        if not self.frames:
-            quality -= 100
-
-        for frame in self.frames:
-            if not frame.symbolsource.symbol:
-                quality -= 1
-            else:
-                if frame.symbolsource.symbol.name == '??':
-                    quality -= 1
-
-            if not frame.symbolsource.source_path:
-                quality -= 1
-
-            if not frame.symbolsource.line_number:
-                quality -= 1
-
-        return quality
 
     @property
     def tainted(self):
@@ -232,6 +208,35 @@ class ReportBacktrace(GenericTable):
             result.append(frame_t)
 
         return result
+
+    def compute_quality(self):
+        '''
+        Compute backtrace quality (0=high quality, -100=lowest)
+
+        Frames with missing information lower the backtrace quality.
+        '''
+        quality = -len(self.taint_flags)
+
+        # empty backtrace
+        if not self.frames:
+            quality -= 100
+
+        for frame in self.frames:
+            if not frame.symbolsource.symbol:
+                quality -= 1
+            elif frame.symbolsource.symbol.name == '??':
+                    quality -= 1
+
+            if not frame.symbolsource.source_path:
+                quality -= 1
+
+            if not frame.symbolsource.line_number:
+                quality -= 1
+
+            if not frame.reliable:
+                quality -= 1
+
+        return quality
 
 
 class ReportBtThread(GenericTable):
@@ -336,6 +341,14 @@ class ReportUnknownPackage(GenericTable):
     report = relationship(Report, backref="unknown_packages")
     installed_arch = relationship(Arch, primaryjoin="Arch.id==ReportUnknownPackage.installed_arch_id")
     running_arch = relationship(Arch, primaryjoin="Arch.id==ReportUnknownPackage.running_arch_id")
+
+    def nvr(self):
+        return "{0}-{1}-{2}".format(self.name, self.installed_version, self.installed_release)
+
+    def nevr(self):
+        if not self.installed_epoch:
+            return self.nvr()
+        return "{0}-{1}:{2}-{3}".format(self.name, self.installed_epoch, self.installed_version, self.installed_release)
 
 
 class ReportExecutable(GenericTable):
@@ -498,3 +511,14 @@ class ReportExternalFaf(GenericTable):
 
     def url(self):
         return "{0}/reports/{1}".format(self.faf_instance.baseurl, self.external_id)
+
+
+class ReportComment(GenericTable):
+    __tablename__ = "reportcomments"
+
+    id = Column(Integer, primary_key=True)
+    report_id = Column(Integer, ForeignKey("{0}.id".format(Report.__tablename__)), nullable=False)
+    text = Column(String(1024), nullable=False)
+    saved = Column(DateTime)
+
+    report = relationship(Report, backref="comments")

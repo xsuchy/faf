@@ -20,6 +20,7 @@ actions_PYTHON = \
     find_components.py \
     find_crash_function.py \
     init.py \
+    mark_probably_fixed.py \
     pull_associates.py \
     pull_components.py \
     pull_releases.py \
@@ -42,6 +43,7 @@ actions_PYTHON = \
     sf_prefilter_patadd.py \
     sf_prefilter_patshow.py \
     shell.py \
+    stats.py \
     opsysadd.py \
     opsysdel.py \
     opsyslist.py \

@@ -1,4 +1,5 @@
 import datetime
+import json
 
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse, Http404
@@ -8,6 +9,9 @@ from django.shortcuts import render_to_response
 from sqlalchemy import func, sql
 
 import pyfaf
+from pyfaf.queries import (get_report_by_hash,
+                           query_hot_problems,
+                           query_longterm_problems)
 from pyfaf.storage.problem import Problem
 from pyfaf.storage.opsys import OpSysRelease, Arch, Package
 from pyfaf.storage.report import (Report,
@@ -15,11 +19,13 @@ from pyfaf.storage.report import (Report,
                                   ReportBtHash,
                                   ReportOpSysRelease,
                                   ReportExecutable,
-                                  ReportPackage)
+                                  ReportPackage,
+                                  ReportUnknownPackage)
 from webfaf.common.forms import OsAssociateComponentFilterForm
 from webfaf.common.utils import paginate, flatten
-from webfaf.common.queries import (query_hot_problems,
-                                   query_longterm_problems)
+from webfaf.common.utils import WebfafJSONEncoder
+from operator import itemgetter
+
 
 def get_week_date_before(nweeks):
     curdate = datetime.date.today()
@@ -50,13 +56,17 @@ def hot(request, *args, **kwargs):
         form.get_component_selection(),
         last_date)
 
-    problems = paginate(problems, request)
-    forward = {'problems' : problems,
-               'form' : form}
+    if "application/json" in request.META.get("HTTP_ACCEPT"):
+        return HttpResponse(json.dumps(problems, cls=WebfafJSONEncoder),
+                            status=200, mimetype="application/json")
+    else:
+        problems = paginate(problems, request)
+        forward = {'problems': problems,
+                   'form': form}
 
-    return render_to_response('problems/hot.html',
-                              forward,
-                              context_instance=RequestContext(request))
+        return render_to_response('problems/hot.html',
+                                  forward,
+                                  context_instance=RequestContext(request))
 
 def longterm(request, *args, **kwargs):
     db = pyfaf.storage.getDatabase()
@@ -70,13 +80,18 @@ def longterm(request, *args, **kwargs):
         flatten(ids),
         form.get_component_selection())
 
-    problems = paginate(problems, request)
-    forward = {'problems' : problems,
-               'form' : form}
+    if "application/json" in request.META.get("HTTP_ACCEPT"):
+        return HttpResponse(json.dumps(problems, cls=WebfafJSONEncoder),
+                            status=200, mimetype="application/json")
+    else:
+        problems = paginate(problems, request)
+        forward = {'problems': problems,
+                   'form': form}
 
-    return render_to_response('problems/longterm.html',
-                              forward,
-                              context_instance=RequestContext(request))
+        return render_to_response('problems/longterm.html',
+                                  forward,
+                                  context_instance=RequestContext(request))
+
 
 def item(request, **kwargs):
     db = pyfaf.storage.getDatabase()
@@ -124,18 +139,37 @@ def item(request, **kwargs):
                     .group_by(ReportPackage.installed_package_id)
                     .order_by(sql.expression.desc('cnt'))
                     .subquery())
-    packages = [(pkg.nevr(), cnt) for (pkg, cnt) in
-                db.session.query(Package, sub.c.cnt).join(sub).all()]
+    packages_known = db.session.query(Package, sub.c.cnt).join(sub).all()
+
+    packages_unknown = (db.session.query(ReportUnknownPackage, ReportUnknownPackage.count)
+                                  .join(Report)
+                                  .filter(Report.id.in_(report_ids))).all()
+
+    packages = packages_known + packages_unknown
+
+    packages_nevr = [(pkg.nevr(), cnt) for (pkg, cnt) in packages]
 
     # merge packages with different architectures
-    merged = dict()
-    for package, count in packages:
-        if package in merged:
-            merged[package] += count
+    merged_nevr = dict()
+    for package, count in packages_nevr:
+        if package in merged_nevr:
+            merged_nevr[package] += count
         else:
-            merged[package] = count
+            merged_nevr[package] = count
 
-    packages = merged
+    packages_nevr = sorted(merged_nevr.items(), key=itemgetter(0, 1))
+
+    packages_name = [(pkg.name, cnt) for (pkg, cnt) in packages]
+
+    # merge packages with different EVRA
+    merged_name = dict()
+    for package, count in packages_name:
+        if package in merged_name:
+            merged_name[package] += count
+        else:
+            merged_name[package] = count
+
+    packages_name = sorted(merged_name.items(), key=itemgetter(1), reverse=True)
 
     for report in problem.reports:
         for backtrace in report.backtraces:
@@ -144,12 +178,13 @@ def item(request, **kwargs):
                 fid += 1
                 frame.nice_order = fid
 
-    forward = { 'problem': problem,
-                'osreleases': osreleases,
-                'arches': arches,
-                'exes': exes,
-                'packages': packages,
-              }
+    forward = {"problem": problem,
+               "osreleases": osreleases,
+               "arches": arches,
+               "exes": exes,
+               "packages_nevr": packages_nevr,
+               "packages_name": packages_name,
+               }
 
     return render_to_response('problems/item.html',
                             forward,
@@ -167,21 +202,19 @@ def cluster(request):
 
 def bthash_forward(request, bthash):
     db = pyfaf.storage.getDatabase()
-    reportbt = (db.session.query(ReportBtHash)
-                          .filter(ReportBtHash.hash == bthash)
-                          .first())
-    if reportbt is None:
+    db_report = get_report_by_hash(db, bthash)
+
+    if db_report is None:
         raise Http404
 
-    if (reportbt.backtrace is None or
-        reportbt.backtrace.report is None):
+    if len(db_report.backtraces) < 1:
         return render_to_response("reports/waitforit.html")
 
-    if reportbt.backtrace.report.problem is None:
+    if db_report.problem is None:
         return render_to_response("problems/waitforit.html")
 
     response = HttpResponse(status=302)
     response["Location"] = reverse('webfaf.problems.views.item',
-                                   args=[reportbt.backtrace.report.problem.id])
+                                   args=[db_report.problem.id])
 
     return response

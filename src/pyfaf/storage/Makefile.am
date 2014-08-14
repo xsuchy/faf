@@ -1,4 +1,6 @@
-SUBDIRS = fixtures
+SUBDIRS = \
+    fixtures \
+    migrations
 
 storage_PYTHON = \
     __init__.py \
@@ -6,6 +8,7 @@ storage_PYTHON = \
     bugtracker.py \
     common.py \
     debug.py \
+    events.py \
     externalfaf.py \
     errata.py \
     llvm.py \
