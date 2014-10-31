@@ -489,9 +489,12 @@ def new():
                                 "\n\nYou can get more information at {0}"
                                 .format(solution.url))
 
-                        response['solutions'] = [{'cause': solution.cause,
-                                                  'note':  solution.note_text,
-                                                  'url':   solution.url}]
+                        solution_dict = {'cause': solution.cause,
+                                         'note':  solution.note_text,
+                                         'url':   solution.url}
+                        if not solution_dict['url']:
+                            del solution_dict['url']
+                        response['solutions'] = [solution_dict]
                         response['result'] = True
 
                     try:
