@@ -81,3 +81,7 @@ td > div.progress {
   text-align: center;
   font-size: small;
 }
+
+.input-group .bootstrap-tagsinput {
+  margin-bottom: 0;
+}
