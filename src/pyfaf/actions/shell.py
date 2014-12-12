@@ -43,15 +43,32 @@ class Shell(Action):
         session = db.session
 
         def first(obj):
+            """
+            Return first `obj` object from DB
+            """
+
             return session.query(obj).first()
 
         # Redefining built-in 'any'
         # pylint: disable-msg=W0622
         def any(obj):
+            """
+            Return random `obj` object from DB
+            """
+
             if isinstance(obj, Iterable):
                 return __builtins__["any"](obj)
 
             return session.query(obj).order_by(func.random()).first()
+
+        def sql_debug():
+            """
+            Turn on SQLAlchemy debug messages
+            """
+
+            import logging
+            logging.basicConfig()
+            logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
 
         try:
             import IPython
