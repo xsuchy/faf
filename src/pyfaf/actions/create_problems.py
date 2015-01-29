@@ -164,8 +164,8 @@ class CreateProblems(Action):
         return None
 
     def _create_problems(self, db, problemplugin):
-        db_reports = get_reports_by_type(db, problemplugin.name)
-        db_problems = get_problems(db)
+        db_reports = get_reports_by_type(db, problemplugin.name, sort=True)
+        db_problems = get_problems(db, sort=True)
 
         # dict to get db_problem by problem_id
         self.log_debug("Creating problem reuse dict")

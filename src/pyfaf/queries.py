@@ -608,11 +608,14 @@ def get_build_by_nevr(db, name, epoch, version, release):
                       .first())
 
 
-def get_problems(db):
+def get_problems(db, sort=False):
     """
     Return a list of all pyfaf.storage.Problem in the storage.
     """
-
+    if sort:
+        return (db.session.query(Problem)
+                          .order_by(Problem.id)
+                          .all())
     return (db.session.query(Problem)
                       .all())
 
@@ -937,15 +940,16 @@ def get_reportreason(db, report, reason):
                       .first())
 
 
-def get_reports_by_type(db, report_type):
+def get_reports_by_type(db, report_type, sort=False):
     """
     Return pyfaf.storage.Report object list from
     the textual type or an empty list if not found.
     """
-
-    return (db.session.query(Report)
-                      .filter(Report.type == report_type)
-                      .all())
+    q = (db.session.query(Report)
+                   .filter(Report.type == report_type))
+    if sort:
+        q = q.order_by(Report.id)
+    return q.all()
 
 
 def get_reportbz(db, report_id, opsysrelease_id=None):
