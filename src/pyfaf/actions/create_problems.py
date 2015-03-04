@@ -249,16 +249,24 @@ class CreateProblems(Action):
             comps = {}
 
             reports_changed = True
+
+            # Only consider reports that already had their problem before this
+            # run of create-problems. This way new reports get more reliably
+            # merged into old problems, which causes less noise.
+            old_reports = [db_report for db_report in problem
+                           if db_report.problem_id is not None]
             problem_id = reuse_problems.get(
-                tuple(sorted([db_report.id for db_report in problem])), None)
+                tuple(sorted([db_report.id for db_report in old_reports])), None)
             if problem_id is not None:
                 db_problem = problems_dict.get(problem_id, None)
-                reports_changed = False
+                # The problems is really unchanged, all reports are old
+                if len(old_reports) == len(problem):
+                    reports_changed = False
                 lookedup_count += 1
                 self.log_debug("Looked up existing problem #{0}"
                                .format(db_problem.id))
             else:
-                db_problem = self._find_problem(db_problems, problem)
+                db_problem = self._find_problem(db_problems, old_reports)
                 found_count += 1
 
             if db_problem is None:
