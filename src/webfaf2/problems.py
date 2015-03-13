@@ -72,15 +72,6 @@ def query_problems(db, hist_table, hist_column,
         .filter(rank_query.c.id == Problem.id)
         .order_by(desc(rank_query.c.rank)))
 
-    if component_ids:
-        comp_query = (
-            db.session.query(ProblemComponent.problem_id.label('problem_id'))
-            .filter(ProblemComponent.component_id.in_(component_ids))
-            .distinct(ProblemComponent.problem_id)
-            .subquery())
-
-        final_query = final_query.filter(Problem.id == comp_query.c.problem_id)
-
     if associate_id:
         assoc_query = (
             db.session.query(ProblemComponent.problem_id.label('problem_id'))
@@ -204,6 +195,15 @@ def query_problems(db, hist_table, hist_column,
 
         ver_sq = version_query.subquery()
         final_query = final_query.filter(Problem.id == ver_sq.c.problem_id)
+    # The version filter takes care of component filtering otherwise
+    elif component_ids:
+        comp_query = (
+            db.session.query(ProblemComponent.problem_id.label('problem_id'))
+            .filter(ProblemComponent.component_id.in_(component_ids))
+            .distinct(ProblemComponent.problem_id)
+            .subquery())
+
+        final_query = final_query.filter(Problem.id == comp_query.c.problem_id)
 
     if limit > 0:
         final_query = final_query.limit(limit)
